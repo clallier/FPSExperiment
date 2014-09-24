@@ -81,6 +81,16 @@
     <Import Include="System.Web.UI.HtmlControls" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Block1.png" />
+    <Content Include="Block2.png" />
+    <Content Include="dat.gui.min.js" />
+    <Content Include="FirstPersonControls.js" />
+    <Content Include="health.png" />
+    <Content Include="index.html" />
+    <Content Include="main.css" />
+    <Content Include="main.js" />
+    <Content Include="stats.min.js" />
+    <Content Include="three.js" />
     <Content Include="Web.config" />
   </ItemGroup>
   <ItemGroup>
