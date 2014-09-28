@@ -1,5 +1,13 @@
 /*global window, THREE, Stats, dat, requestAnimationFrame, console*/
-
+/// <reference path="three.js" />
+/// <reference path="postprocessing/RenderPass.js" />
+/// <reference path="postprocessing/EffectComposer.js" />
+/// <reference path="postprocessing/BloomPass.js" />
+/// <reference path="postprocessing/FilmPass.js" />
+/// <reference path="postprocessing/ShaderPass.js" />
+/// <reference path="shaders/VignetteShader.js" />
+/// <reference path="shaders/DotScreenShader.js" />
+/// <reference path="stats.min.js" />
 
 // http://www.isaacsukin.com/news/2012/06/how-build-first-person-shooter-browser-threejs-and-webglhtml5-canvas
 
@@ -16,9 +24,9 @@ var WIDTH = window.innerWidth,
     HEIGHT = window.innerHeight,
     ASPECT = WIDTH / HEIGHT,
     UNITSIZE = 250,
-    WALLHEIGHT = UNITSIZE / 3,
-    MOVESPEED = 100,
-    LOOKSPEED = 0.075,
+    WALLHEIGHT = UNITSIZE/2,
+    MOVESPEED = 400,
+    LOOKSPEED = 0.7,
     BULLETMOVESPEED = MOVESPEED * 5,
     NUMAI = 5,
     PROJECTILEDAMAGE = 20,
@@ -27,12 +35,14 @@ var WIDTH = window.innerWidth,
     scene = {},
     cam = {},
     renderer = {},
+    composer = {},
     controls = {},
     clock = {},
     stats = {},
     projector = {},
     model = {},
     skin = {},
+    floor = {},
 
     // GUI
     gui = {},
@@ -96,16 +106,16 @@ var initMap = function () {
     'use strict';
     map = [
         //  1  2  3  4  5  6  7  8  9
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1], // 0
-        [1, 1, 0, 0, 0, 0, 0, 1, 1, 1], // 1
+        [0, 1, 1, 1, 1, 1, 1, 1, 0, 0], // 0
+        [0, 1, 0, 0, 0, 0, 0, 1, 1, 1], // 1
         [1, 1, 0, 0, 2, 0, 0, 0, 0, 1], // 2
         [1, 0, 0, 0, 0, 2, 0, 0, 0, 1], // 3
         [1, 0, 0, 2, 0, 0, 2, 0, 0, 1], // 4
         [1, 0, 0, 0, 2, 0, 0, 0, 1, 1], // 5
-        [1, 1, 1, 0, 0, 0, 0, 1, 1, 1], // 6
-        [1, 1, 1, 0, 0, 1, 0, 0, 1, 1], // 7
-        [1, 1, 1, 1, 1, 1, 0, 0, 1, 1], // 8
-        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]];// 9
+        [1, 1, 1, 0, 0, 0, 0, 1, 1, 0], // 6
+        [0, 0, 1, 0, 0, 1, 0, 0, 1, 0], // 7
+        [0, 0, 1, 1, 1, 1, 0, 0, 1, 0], // 8
+        [0, 0, 0, 0, 0, 1, 1, 1, 1, 0]];// 9
     mapW = map.length;
     mapH = map[0].length;
 };
@@ -115,29 +125,67 @@ var setupScene = function () {
     'use strict';
     var i = 0, j = 0, wall,
         units = mapW,
-
-        // Geometry: floor
-        floor = new THREE.Mesh(
-            new THREE.BoxGeometry(units * UNITSIZE, 10, units * UNITSIZE),
-            new THREE.MeshLambertMaterial({color: 0xedcba0})
-        ),
-
-        // Geometry: wall
-        cube = new THREE.BoxGeometry(UNITSIZE, WALLHEIGHT, UNITSIZE),
-        materials = [
-            new THREE.MeshLambertMaterial({map: THREE.ImageUtils.loadTexture('Block1.png'), minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter}),
-            new THREE.MeshLambertMaterial({map: THREE.ImageUtils.loadTexture('Block2.png'), minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter})
-        ],
-
-        // healthCube
-        healthCube = new THREE.Mesh(
-            new THREE.BoxGeometry(30, 30, 30),
-            new THREE.MeshBasicMaterial({map: THREE.ImageUtils.loadTexture('health.png'), minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter})
-        ),
+        cube, healthCube,
+        textureBlock1 = THREE.ImageUtils.loadTexture("Block1.png"),
+        textureBlock2 = THREE.ImageUtils.loadTexture("Block2.png"),
+        health = THREE.ImageUtils.loadTexture("health.png"),
+        materials = [],
 
         // lightning
-        directionalLight1 = new THREE.DirectionalLight(0xf7efbe, 0.7),
-        directionalLight2 = new THREE.DirectionalLight(0xf7efbe, 0.5);
+        directionalLight1 = new THREE.DirectionalLight(0xd6e2ff, 1);
+    
+    directionalLight1.target.position.set(0,0,0);
+    directionalLight1.position.set(1000, 1000, 0);
+    directionalLight1.shadowCameraVisible = true;
+    directionalLight1.castShadow = true;
+    directionalLight1.shadowCameraFar = units * UNITSIZE;
+    var unitsHalf = units * UNITSIZE / 2;
+    directionalLight1.shadowCameraTop = unitsHalf
+    directionalLight1.shadowCameraBottom = -unitsHalf;
+    directionalLight1.shadowCameraRight = unitsHalf;
+    directionalLight1.shadowCameraLeft = -unitsHalf;
+    directionalLight1.shadowMapWidth = 256;//SHADOW_MAP_WIDTH;
+    directionalLight1.shadowMapHeight = 256;//SHADOW_MAP_HEIGHT;
+    directionalLight1.shadowMapSoft = false;
+    scene.add(directionalLight1);
+
+
+    textureBlock1.minFilter = THREE.NearestFilter;
+    textureBlock1.magFilter = THREE.NearestFilter;
+    textureBlock2.minFilter = THREE.NearestFilter;
+    textureBlock2.magFilter = THREE.NearestFilter;
+    health.minFilter = THREE.NearestFilter;
+    health.magFilter = THREE.NearestFilter;
+
+    materials.push(new THREE.MeshLambertMaterial({ map: textureBlock1, fog: true, emissive: 0xcccccc }));
+    materials.push(new THREE.MeshLambertMaterial({ map: textureBlock2, fog: true, emissive: 0xcccccc }));
+
+    // Geometry: floor
+    floor = new THREE.Mesh(
+        new THREE.PlaneGeometry(units * UNITSIZE, units * UNITSIZE, 1, 1),
+        new THREE.MeshBasicMaterial({ color: 0x42003A })
+    );
+    // add floor
+    floor.rotation.x = -Math.PI/2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+
+        
+    // healthCube
+    healthCube = new THREE.Mesh(
+        new THREE.BoxGeometry(30, 30, 30),
+        new THREE.MeshBasicMaterial({ map: health, blending : THREE.AdditiveBlending})
+    );
+    //removeBottom(healthCube);
+
+    // add healthCube
+    healthCube.position.set(-UNITSIZE - 15, 35, -UNITSIZE - 15);
+    healthCube.castShadow = true;
+    scene.add(healthCube);
+
+    // Geometry: wall
+    cube = new THREE.BoxGeometry(UNITSIZE, WALLHEIGHT, UNITSIZE);
+    removeBottom(cube);
 
     // create map
     for (i = 0; i < mapW; i += 1) {
@@ -145,31 +193,52 @@ var setupScene = function () {
             if (map[i][j]) {
                 wall = new THREE.Mesh(cube, materials[map[i][j] - 1]);
                 wall.position.x = (i - units / 2) * UNITSIZE;
-                wall.position.y = WALLHEIGHT;
+                wall.position.y = WALLHEIGHT/2;
                 wall.position.z = (j - units / 2) * UNITSIZE;
+                wall.castShadow = true;
+                wall.receiveShadow = true;
                 scene.add(wall);
             }
         }
     }
-
-    // add healthCube
-    healthCube.position.set(-UNITSIZE - 15, 35, -UNITSIZE - 15);
-    scene.add(healthCube);
-
-    // lightning
-    directionalLight1.position.set(0.5, 1, 0.5);
-    directionalLight2.position.set(-0.5, -1, -0.5);
-    scene.add(directionalLight1);
-    scene.add(directionalLight2);
 };
 
+var removeBottom = function ( geo ) {
+	var newFaces = [];
+
+	for ( var j = 0, jl = geo.faces.length; j < jl; j ++ ) {
+
+		if ( geo.faces[ j ].materialIndex !== 3 ) newFaces.push( geo.faces[ j ] );
+
+	}
+
+	geo.faces = newFaces;
+
+	console.log( geo );
+	console.log( newFaces );
+
+}
 
 var setupGUI = function () {
     'use strict';
+    /*
     gui = new dat.GUI();
-    //gui.add("radar"); //TODO
-    gui.add("health", health).listen();
-    gui.add("score", score).listen();
+    var parameters = { x: 0, y: 0, z: 0 };
+    var rotx = gui.add(parameters, "x").min(-Math.PI).max(Math.PI).step(0.1).listen();
+    var roty = gui.add(parameters, "y").min(-Math.PI).max(Math.PI).step(0.1).listen();
+    var rotz = gui.add(parameters, "z").min(-Math.PI).max(Math.PI).step(0.1).listen();
+
+    rotx.onChange(function (value)
+    { floor.rotation.x = value; });
+    roty.onChange(function (value)
+    { floor.rotation.y = value; });
+    rotz.onChange(function (value)
+    { floor.rotation.z = value; });
+    */
+    stats = new Stats();
+    stats.domElement.style.position = 'absolute';
+    stats.domElement.style.top = '0px';
+    document.body.appendChild(stats.domElement);
 };
 
 var addAI = function () {
@@ -407,10 +476,12 @@ var render = function () {
     'use strict';
     var delta = clock.getDelta();
 
+    //updateGUI
+    stats.update();
+
     // move cam
     controls.update(delta);
 
-    
     if (healthCube !== null && cam !== null) {
         // rotate the healthCube
         healthCube.rotation.x += 0.004;
@@ -436,7 +507,8 @@ var render = function () {
     updateAI(delta);
 
     // repaint
-    renderer.render(scene, cam);
+    //renderer.render(scene, cam);
+    composer.render(delta);
 
     // death
     if (health <= 0) {
@@ -465,17 +537,15 @@ var init = function () {
     clock = new THREE.Clock();
     projector = new THREE.Projector();
     scene = new THREE.Scene();
-    scene.fog = THREE.FogExp2(0xd6f1ff, 0.0005);
+    scene.fog = THREE.FogExp2(0xffffff, 0.015);
 
-
-    cam = new THREE.PerspectiveCamera(60, ASPECT, 1, 10000);
+    cam = new THREE.PerspectiveCamera(60, ASPECT, 1, 3000);
     cam.position.y = UNITSIZE * 0.2; // Raise the camera off the ground
     scene.add(cam);
     controls = new THREE.FirstPersonControls(cam);
     controls.movementSpeed = MOVESPEED;
     controls.lookSpeed = LOOKSPEED;
-    controls.lookVertical = false;
-    controls.noFly = true;
+    controls.lookVertical = true;
     
     // world objects
     setupScene();
@@ -486,14 +556,36 @@ var init = function () {
     // renderer
     renderer = new THREE.WebGLRenderer();
     renderer.setSize(WIDTH, HEIGHT);
-    renderer.domElement.style.backgroundColor = "#d6f1ff";
+    renderer.autoClear = false;
+    renderer.shadowMapEnabled = true;
+    renderer.shadowMapSoft = false;
+
+    // Post Process
+    var renderModel = new THREE.RenderPass(scene, cam);
+    var effectBloom = new THREE.BloomPass(0.9);
+    var effectFilm = new THREE.FilmPass(0.3, 0.5, 640, false);
+    var shaderVignette = THREE.VignetteShader;
+    var effectVignette = new THREE.ShaderPass(shaderVignette);
+    effectVignette.uniforms["offset"].value = 0.95;
+    effectVignette.uniforms["darkness"].value = 1;
+
+    effectFilm.renderToScreen = true;
+
+    composer = new THREE.EffectComposer(renderer);
+    composer.addPass(new THREE.RenderPass(scene, cam));
+    composer.addPass(renderModel);
+    composer.addPass(effectVignette);
+    composer.addPass(effectBloom);
+    composer.addPass(effectFilm);
+    
+    renderer.domElement.style.backgroundColor = "#50005F";
     document.body.appendChild(renderer.domElement);
 
     // mouse events
     setupEventListeners();
     
     //init GUI
-    //setupGUI();
+    setupGUI();
     animate();
 };
 
