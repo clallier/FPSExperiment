@@ -83,10 +83,15 @@
   <ItemGroup>
     <Content Include="Block1.png" />
     <Content Include="Block2.png" />
+    <Content Include="Creature.js" />
     <Content Include="dat.gui.min.js" />
     <Content Include="FirstPersonControls.js" />
+    <Content Include="Game.js" />
+    <Content Include="Ghost.js" />
     <Content Include="health.png" />
+    <Content Include="HealthCube.js" />
     <Content Include="index.html" />
+    <Content Include="Map.js" />
     <Content Include="main.css" />
     <Content Include="main.js" />
     <Content Include="stats.min.js" />
