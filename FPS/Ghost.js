@@ -5,16 +5,19 @@ var i = 0;
 var Ghost = Object.create(Creature);
 Ghost.health = 100;
 Ghost.lastShot = 0;
-Ghost.astar = {};
+Ghost.astar = null;
+Ghost.direction = { x: 0, z: 0 };
+Ghost.previousSector = { x: 0, z: 0 };
+Ghost.size = 30;
 
 Ghost.initMesh = function () {
     var health = THREE.ImageUtils.loadTexture("health.png");
 
     health.minFilter = THREE.NearestFilter;
     health.magFilter = THREE.NearestFilter;
-    var size = RetroBomber.UNITSIZE / 3;
+    this.size = RetroBomber.UNITSIZE / 3;
     this.mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(size, size, size),
+        new THREE.BoxGeometry(this.size, this.size, this.size),
         new THREE.MeshBasicMaterial({ map: health, color: 0xff0000 })
     );
     this.mesh.castShadow = true;
@@ -31,7 +34,6 @@ Ghost.init = function () {
         this.initMesh();
 
     this.health = 100;
-    this.getNewMove();
     this.lastShot = Date.now();
 };
 
@@ -44,25 +46,34 @@ Ghost.update = function (delta) {
         cc = {} // map sector player 
 
     var aispeed = delta * RetroBomber.MOVESPEED / 2;
+    if (aispeed > 3) aispeed = 3;
 
-    this.getNextMove();
+    // get sector
+	var p = {x: this.mesh.position.x - this.direction.x * RetroBomber.UNITSIZE/2, 
+		 	 z: this.mesh.position.z - this.direction.z * RetroBomber.UNITSIZE/2};
+	c = RetroBomber.map.getMapSector(p);
 
-    this.mesh.translateX(aispeed * this.lastRandomX);
-    this.mesh.translateZ(aispeed * this.lastRandomZ);
-    c = RetroBomber.map.getMapSector(this.mesh.position);
+	// init if needed
+	this.getNextMove(c);
 
-    // world borders
+    this.mesh.translateX(aispeed * this.direction.x);
+    this.mesh.translateZ(aispeed * this.direction.z);
+
+ 	this.previousSector = c;
+
+    // world borders ???
+	/*
     if (c.x < 0 || c.x >= RetroBomber.map.mapW || c.y < 0 || c.y >= RetroBomber.map.mapH || RetroBomber.map.checkWallCollision(this.mesh.position)) {
         this.mesh.translateX(-2 * aispeed * this.lastRandomX);
         this.mesh.translateZ(-2 * aispeed * this.lastRandomZ);
 
-        this.getNewMove(r);
+        this.getNewMove();
     }
 
     if (c.x < -1 || c.x >= RetroBomber.map.mapW || c.z < -1 || c.z >= RetroBomber.map.mapH) {
         this.health = 0;
     }
-
+	*/
     // shoot
     /*
     cc = RetroBomber.map.getMapSector(RetroBomber.cam.position);
@@ -73,30 +84,41 @@ Ghost.update = function (delta) {
     */
 }
 
-Ghost.getNewMove = function (r) {
-    var list = RetroBomber.map.getTypeList(0);
-    var r = RetroBomber.getRandBetween(0, list.length);
-        
-    // current node
-    var b = RetroBomber.map.getMapSector(this.mesh.position);
+Ghost.getNewMove = function (currentSector) {
     // target node
-    var t = {x: list[r].i, z: list[r].j};
-        
+    var list = RetroBomber.map.getTypeList(0);
+	
+    var r = RetroBomber.getRandBetween(0, list.length-1);
+    var t = { x: list[r].x, z: list[r].z };
+	console.log(t.x, t.z);
+  
     this.astar = Object.create(AStar);
-    astar.init(RetroBomber.map.map, b, t);
+    this.astar.init(RetroBomber.map.map, currentSector, t);
 }
 
-Ghost.getNextMove = function () {
-    // current node
-    var b = RetroBomber.map.getMapSector(this.mesh.position);
-    // TODO : donner comme direction la direction vers le prochain noeud !!!!
-    // TODO : qd le dernier noeud est atteint, init de nouveau astar
+Ghost.getNextMove = function (currentSector) {
+	if(this.astar === null)
+		this.getNewMove(currentSector);
+	
+    // direction to next node in the A* path
+	if(currentSector.x !== this.previousSector.x || currentSector.z !== this.previousSector.z) {
+    	this.direction = this.astar.getNextMove(currentSector);
+		console.log(this.direction.x +", "+ this.direction.z);
+	}
+
+    if (this.direction.x === 0 && this.direction.z === 0){
+        this.getNewMove(currentSector);
+		this.direction = this.astar.getNextMove(currentSector);
+		console.log(this.direction.x +", "+ this.direction.z);
+    }
+
 }
 
 
 var AStar = {
 
-    map : [],
+    map: [],
+    path: [],
     /*************************************************************************
      * map : the current map to go througth
      * b : the current node {x, y}
@@ -116,6 +138,7 @@ var AStar = {
             closedList = []
 
         // copy locally the map
+		this.map = [];
         for (var i = 0, l = map.length; i < l; i++) {
             this.map.push([]);
             for (var j = 0, k = map[i].length; j < k; j++) {
@@ -138,16 +161,20 @@ var AStar = {
 			
 			// End case -- result has been found, return the traced path
 			if(currentNode.z === target.z && currentNode.x === target.x) {
-				var curr = currentNode;
-				var ret = [];
+				var tmpNode = currentNode;
+				var tmpPath = [];
 
-				ret.push(curr);
-				while(curr.parent != null) {
-					ret.push(curr);
-					curr = curr.parent;
+				while(tmpNode.parent != null) {
+					tmpPath.push({x: tmpNode.x, z: tmpNode.z});
+					tmpNode = tmpNode.parent;
 				}
-				ret.reverse();
-				return ret;
+				// push the first one
+				tmpPath.push({x: tmpNode.x, z: tmpNode.z});
+				
+				tmpPath.reverse();
+				this.path = tmpPath;
+				console.log("path: " + this.path);
+				return;
 			}
 			
 			// Normal case -- move currentNode from open to closed, process each of its neighbors
@@ -189,27 +216,39 @@ var AStar = {
 			}
 		}
 		
-		return [];
+		//return [];
     },
 
     /******************************************************************
      * return the neighbors list of the node b
      */
-	getNeighbors : function (b)
+	getNeighbors : function (node)
 	{
-		var neighbors = [];
-		// T&D neigbors
-		var n = this.map[b.x][b.z-1];
-		if(n != null && n.v === 0) neighbors.push(n);
-		var n = this.map[b.x][b.z+1];
-		if(n != null && n.v === 0) neighbors.push(n);
+		var neighbors = [], 
+			l, r, t, b;
+		
+		// l&r neigbors
+		if(node.z-1>=0) 
+			l = this.map[node.x][node.z-1];
+		if(l !== undefined && l.v === 0) 
+			neighbors.push(l);
+		
+		if(node.z + 1 < this.map[node.x].length)
+			r = this.map[node.x][node.z+1];
+		if(r !== undefined && r.v === 0) 
+			neighbors.push(r);
 
 		
-		// L&R neigbors
-		var n = this.map[b.x-1][b.z];
-		if(n != null && n.v === 0) neighbors.push(n);
-		var n = this.map[b.x+1][b.z];
-		if (n != null && n.v === 0) neighbors.push(n);
+		// t&b neigbors
+		if( node.x-1 >= 0)
+			b = this.map[node.x-1][node.z];
+		if (b !== undefined && b.v === 0) 
+			neighbors.push(b);
+
+		if (node.x + 1 < this.map.length)
+		    t = this.map[node.x+1][node.z];
+		if (t !== undefined && t.v === 0) 
+			neighbors.push(t);
 		
 		return neighbors;
 	},
@@ -219,5 +258,26 @@ var AStar = {
 		var d1 = Math.abs (x2 - x1);
 		var d2 = Math.abs (y2 - y1);
 		return d1 + d2; //manhattan dist
-	}
+	},
+
+    getNextMove: function (currentPosition) {
+        var i = 0, l = 0;
+
+        for (i = 0, l = this.path.length; i < l; ++i) {
+            if(this.path[i].x === currentPosition.x &&
+                this.path[i].z === currentPosition.z) {
+                
+                // not the end of path
+                if(i < l-1) 
+				{
+					//console.log("move to :" + this.path[i+1].x + ", " this.path[i+1].z);
+                    return { 	x: (this.path[i+1].x - currentPosition.x), 
+								z: (this.path[i+1].z - currentPosition.z)}
+                }
+            }
+        }
+
+        // end of path, or current position not matched
+        return {x: 0, z: 0}
+    }
 }
