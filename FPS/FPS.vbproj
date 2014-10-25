@@ -83,6 +83,7 @@
   <ItemGroup>
     <Content Include="Block1.png" />
     <Content Include="Block2.png" />
+    <Content Include="Coin.js" />
     <Content Include="Creature.js" />
     <Content Include="dat.gui.min.js" />
     <Content Include="FirstPersonControls.js" />
@@ -94,6 +95,7 @@
     <Content Include="Map.js" />
     <Content Include="main.css" />
     <Content Include="main.js" />
+    <Content Include="Player.js" />
     <Content Include="stats.min.js" />
     <Content Include="three.js" />
     <Content Include="Web.config" />

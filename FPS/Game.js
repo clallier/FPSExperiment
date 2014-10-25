@@ -29,10 +29,9 @@ var RetroBomber = {
     cam: {},
     renderer: {},
     composer: {},
-    controls: {},
+
     clock: {},
     stats: {},
-    projector: {},
     model: {},
     skin: {},
     floor: {},
@@ -40,21 +39,19 @@ var RetroBomber = {
     // GUI
     gui: {},
 
-    // AI
-    AI: [],
+    // creatures
+    creatures: [],
 
     // game play
-    bullets: [],
+    bullets: [], // TODO remove => creatures
     delta: 0,
-    score: 0,
 
     // game vars
     runAnim: true,
-    mouse: { x: 0, y: 0 },
-    kills: 0,
-    health: 100,
+
     healthCube: Object.create(HealthCube),
     map: Object.create(Map),
+    player: {},     //controls: {},
 
     /**********************************************************************************
      *
@@ -175,6 +172,7 @@ var RetroBomber = {
                     var coin = Object.create(Coin);
                     coin.init();
                     coin.setPosition(x, this.UNITSIZE / 4, z);
+                    this.creatures.push(coin);
                     this.scene.add(coin.mesh);
                 }
             }
@@ -194,8 +192,8 @@ var RetroBomber = {
             if (geo.faces[j].materialIndex !== 3) newFaces.push(geo.faces[j]);
         }
         geo.faces = newFaces;
-        console.log(geo);
-        console.log(newFaces);
+        //console.log(geo);
+        //console.log(newFaces);
     },
 
 
@@ -236,8 +234,8 @@ var RetroBomber = {
     onDocumentMouseMove: function (event) {
         'use strict';
         event.preventDefault();
-        this.mouse.x = (event.clientX / this.WIDTH) * 2 - 1;
-        this.mouse.y = -(event.clientY / this.HEIGHT) * 2 - 1;
+        this.player.mouse.x = (event.clientX / this.WIDTH) * 2 - 1;
+        this.player.mouse.y = -(event.clientY / this.HEIGHT) * 2 - 1;
     },
 
 
@@ -250,7 +248,7 @@ var RetroBomber = {
 
         // left click
         if (event.which === 1) {
-            this.createBullet();
+            this.player.createBullet();
         }
     },
 
@@ -266,36 +264,15 @@ var RetroBomber = {
 
         var that = this;
         window.onfocus = function () {
-            that.controls.freeze = false;
+            that.player.controller.freeze = false;
         };
 
         window.onblur = function () {
-            that.controls.freeze = true;
+            that.player.controller.freeze = true;
         };
     },
 
 
-    /**********************************************************************************
-        *
-        */
-    createBullet: function (parent) {
-        'use strict';
-        // TODO caching mat
-        var sphereMat = new THREE.MeshBasicMaterial({ color: 0x333333 }),
-            sphereGeo = new THREE.SphereGeometry(2, 6, 6),
-            sphere = new THREE.Mesh(sphereGeo, sphereMat),
-            vector = {};
-
-        if (parent === undefined) {
-            parent = this.cam;
-        }
-        sphere.position.set(parent.position.x, parent.position.y * 0.8, parent.position.z);
-
-        if (parent instanceof THREE.Camera) {
-            vector = new THREE.Vector3(this.mouse.x, this.mouse.y, 1);
-            this.projector.unprojectVector(vector, parent);
-        }
-    },
 
 
     /**********************************************************************************
@@ -329,8 +306,8 @@ var RetroBomber = {
                 break;
             }
 
-            for (j = AI.length - 1; j >= 0; j -= 1) {
-                a = AI[j];
+            for (j = creatures.length - 1; j >= 0; j -= 1) {
+                a = creatures[j];
                 v = a.geometry.vertices[0];
                 c = a.position;
                 x = Math.abs(v.x);
@@ -377,31 +354,27 @@ var RetroBomber = {
         //updateGUI
         this.stats.update();
 
-        // move cam
-        this.controls.update(delta);
-
-        
-        if (this.healthCube !== null && this.cam !== null) {
+        if (this.healthCube !== null && this.player !== null) {
             this.healthCube.update(delta);
-            this.healthCube.interact(this.cam, this);
+            this.healthCube.interact(this.player.mesh, this);
         }
 
         // move bullets : go backwards through the list so we can remove items.
         //this.updateBullets(delta);
 
-        // move AI
-        this.updateAI(delta);
+        // move creatures
+        this.updateCreatures(delta);
         
         // repaint
         this.renderer.render(this.scene, this.cam);
         //this.composer.render(delta);
 
         // death
-        if (this.health <= 0) {
-            this.runAnim = false;
+        //if (this.health <= 0) {
+        //    this.runAnim = false;
 
-            // TODO : restart
-        }
+        //    // TODO : restart
+        //}
 
     },
 
@@ -456,21 +429,21 @@ var RetroBomber = {
 
         o.setPosition(x, this.UNITSIZE * 0.15, z);
 
-        this.AI.push(o);
+        this.creatures.push(o);
         this.scene.add(o.mesh);
     },
 
     /**********************************************************************************
      *
      */
-    updateAI: function (delta) {
+    updateCreatures: function (delta) {
         var i = 0;
-        for (i = this.AI.length - 1; i >= 0; i -= 1) {
-            a = this.AI[i];
+        for (i = this.creatures.length - 1; i >= 0; i -= 1) {
+            a = this.creatures[i];
 
             //check death
             if (a.health <= 0) {
-                this.AI.splice(i, 1);
+                this.creatures.splice(i, 1);
                 this.scene.remove(i);
                 this.kills += 1;
                 this.addAI();
@@ -495,18 +468,16 @@ var RetroBomber = {
         this.map.init();
 
         this.clock = new THREE.Clock();
-        this.projector = new THREE.Projector();
         this.scene = new THREE.Scene();
         
-        this.cam = new THREE.PerspectiveCamera(60, this.ASPECT, 1, 3000);
-        this.cam.position.y = 2000;//this.UNITSIZE * 0.4; // Raise the camera off the ground
-        this.cam.rotation.x = 4.7;
-        this.scene.add(this.cam);
-        this.controls = new THREE.FirstPersonControls(this.cam);
-        this.controls.movementSpeed = this.MOVESPEED;
-        this.controls.lookSpeed = this.LOOKSPEED;
-        this.controls.lookVertical = true;
+        // player + controller + cam init
+        this.player = Object.create(Player);
+        this.player.init();
+        this.creatures.push(this.player);
 
+        this.cam = this.player.cam;
+        this.scene.add(this.cam);
+        
         // world objects
         this.setupScene();
 

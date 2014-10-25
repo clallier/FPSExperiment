@@ -35,7 +35,7 @@ Coin.setPosition = function (x, y, z) {
 
 Coin.update = function (delta) {
     this.totalLifeTime += delta;
-    this.mesh.position.y = Math.sin(this.totalLifeTime+this.offset) * 10 + 30;
+    this.mesh.position.y = Math.sin(this.totalLifeTime+this.offset) * 5 + 15;
 };
 
 Coin.interact = function (otherMesh, game) {

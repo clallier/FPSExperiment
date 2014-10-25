@@ -1,4 +1,5 @@
 ﻿var Creature = {
+    health: 1,
     mesh: null,
     initMesh : function() {},
     init : function() {},

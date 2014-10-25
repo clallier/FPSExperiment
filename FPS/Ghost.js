@@ -3,7 +3,6 @@
 var i = 0;
 
 var Ghost = Object.create(Creature);
-Ghost.health = 100;
 Ghost.lastShot = 0;
 Ghost.astar = null;
 Ghost.direction = { x: 0, z: 0 };
@@ -29,7 +28,7 @@ Ghost.initMesh = function () {
  */
 Ghost.init = function () {
     'use strict';
-    
+
     if (this.mesh === null)
         this.initMesh();
 
