@@ -32,7 +32,23 @@ Player.init = function () {
 
 
 Player.update = function (delta) {
+    var x = this.mesh.position.x;
+    var z = this.mesh.position.z;
+
     this.controller.update(delta);
+    
+    var dx = this.mesh.position.x - x;
+    var dz = this.mesh.position.z - z;
+    
+    var tx = this.mesh.position.x + 3*dx;
+    var tz = this.mesh.position.z + 3*dz;
+    
+    var sector = RetroBomber.map.getMapSector({x: tx, y: this.mesh.position.y, z: tz});
+    var value = RetroBomber.map.map[sector.x][sector.z];
+    if (value !== 0) {
+        this.mesh.position.x = x;
+        this.mesh.position.z = z;
+    }
 };
 
 /**********************************************************************************

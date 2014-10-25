@@ -25,7 +25,9 @@ var Map = {
     },
 
     /**********************************************************************************
-     *
+     * TODO :
+     * : convertToSector qui retourne { x: x, z: z }
+     * et getMapSector qui retourne la valeur du secteur (0,1,2,3 ou 4)
      */
     getMapSector: function (v) {
         'use strict';
