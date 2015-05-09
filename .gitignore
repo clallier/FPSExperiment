@@ -154,3 +154,6 @@ $RECYCLE.BIN/
 
 # Mac desktop service store files
 .DS_Store
+/jspm_packages
+/node_modules/jspm
+/node_modules/.bin

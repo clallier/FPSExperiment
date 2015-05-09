@@ -1,0 +1,39 @@
+{
+  "name": "FPS",
+  "version": "1.0.0",
+  "description": "A game of dots",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/clallier/FPSExperiment.git"
+  },
+  "keywords": [
+    "threejs",
+    "three",
+    "FPS",
+    "retrobomber"
+  ],
+  "author": "godjam",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/clallier/FPSExperiment/issues"
+  },
+  "homepage": "https://github.com/clallier/FPSExperiment",
+  "devDependencies": {
+    "jspm": "^0.15.6"
+  },
+  "jspm": {
+    "directories": {},
+    "dependencies": {
+      "three": "github:mrdoob/three.js@master"
+    },
+    "devDependencies": {
+      "babel": "npm:babel-core@^5.1.13",
+      "babel-runtime": "npm:babel-runtime@^5.1.13",
+      "core-js": "npm:core-js@^0.9.4"
+    }
+  }
+}
